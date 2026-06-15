@@ -21,5 +21,8 @@ let package = Package(
         .target(
             name: "OleusMobile",
             dependencies: ["OleusCrashCore"]),
+        .testTarget(
+            name: "OleusMobileTests",
+            dependencies: ["OleusMobile"]),
     ]
 )

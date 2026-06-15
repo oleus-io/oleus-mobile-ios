@@ -66,6 +66,49 @@ enum OleusDevice {
     }
 }
 
+/// Persisted anonymous + identified ids for the current install.
+/// `distinctId` is sent on every event; `identify` ties it to a known user.
+enum OleusIdentity {
+    private static let anonKey     = "io.oleus.anon_id"
+    private static let distinctKey = "io.oleus.distinct_id"
+    private static let lock = NSLock()
+
+    /// Backing store. Overridable in tests to isolate from the app's defaults.
+    static var defaults: UserDefaults = .standard
+
+    /// The persisted anonymous id (generated once per install, until `reset`).
+    static var anonId: String {
+        lock.lock(); defer { lock.unlock() }
+        return loadOrCreateAnon()
+    }
+
+    /// The id sent on every event — the user id once identified, else the anon id.
+    static var distinctId: String {
+        lock.lock(); defer { lock.unlock() }
+        return defaults.string(forKey: distinctKey) ?? loadOrCreateAnon()
+    }
+
+    static func identify(_ id: String) {
+        lock.lock(); defer { lock.unlock() }
+        defaults.set(id, forKey: distinctKey)
+    }
+
+    /// Forget the identified user and rotate to a fresh anonymous id (logout).
+    static func reset() {
+        lock.lock(); defer { lock.unlock() }
+        defaults.removeObject(forKey: distinctKey)
+        defaults.set(UUID().uuidString, forKey: anonKey)
+    }
+
+    // caller must hold `lock`
+    private static func loadOrCreateAnon() -> String {
+        if let saved = defaults.string(forKey: anonKey) { return saved }
+        let generated = UUID().uuidString
+        defaults.set(generated, forKey: anonKey)
+        return generated
+    }
+}
+
 /// Builds the OTLP/HTTP JSON envelope for a batch of log records.
 enum OleusOTLP {
     struct Record {
@@ -108,6 +151,7 @@ enum OleusOTLP {
             "app_version": config.release,
             "release": config.release,
             "device.id": OleusDevice.deviceId,
+            "distinct_id": OleusIdentity.distinctId,
         ]
         if let sessionId = sessionId { attrs["session.id"] = sessionId }
         return attrs

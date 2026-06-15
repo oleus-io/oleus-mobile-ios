@@ -96,6 +96,51 @@ public final class OleusMobile {
         ))
     }
 
+    // ── identity ────────────────────────────────────────────────────────────────
+
+    /// Tie the current anonymous install to a known user id. Emits a `$identify`
+    /// carrying the anonymous id so pre-login activity stitches to one person.
+    /// `properties` become person properties (`$set`).
+    public static func identify(_ distinctId: String, properties: [String: Any]? = nil) {
+        guard !distinctId.isEmpty else { return }
+        let anon = OleusIdentity.anonId
+        OleusIdentity.identify(distinctId)
+        guard let cfg = config, let queue = events else { return }
+        var attrs = OleusOTLP.baseAttributes(config: cfg, sessionId: sessions?.sessionId)
+        attrs["event.name"] = "$identify"
+        attrs["event.domain"] = "oleus"
+        attrs["$anon_id"] = anon
+        if let properties = properties {
+            for (k, v) in properties { attrs["$set.\(k)"] = String(describing: v) }
+        }
+        queue.enqueue(OleusOTLP.Record(
+            timeMs: Date().timeIntervalSince1970 * 1000,
+            severity: "INFO", body: "$identify", attributes: attrs
+        ))
+    }
+
+    /// Merge another distinct id into the current person (e.g. web ↔ iOS).
+    public static func alias(_ otherDistinctId: String) {
+        guard !otherDistinctId.isEmpty, let cfg = config, let queue = events else { return }
+        var attrs = OleusOTLP.baseAttributes(config: cfg, sessionId: sessions?.sessionId)
+        attrs["event.name"] = "$merge"
+        attrs["event.domain"] = "oleus"
+        attrs["$alias"] = otherDistinctId
+        queue.enqueue(OleusOTLP.Record(
+            timeMs: Date().timeIntervalSince1970 * 1000,
+            severity: "INFO", body: "$merge", attributes: attrs
+        ))
+    }
+
+    /// Clear identity on logout: forget the user id and rotate the anonymous id.
+    public static func reset() {
+        OleusIdentity.reset()
+    }
+
+    /// The id currently sent on every event (user id once identified, else anon).
+    /// Named to match the browser/Android SDKs (`getDistinctId`).
+    public static func getDistinctId() -> String { OleusIdentity.distinctId }
+
     /// Add a breadcrumb (screen navigation, key taps, network milestones).
     public static func addBreadcrumb(message: String, category: String = "default", attributes: [String: Any]? = nil) {
         Breadcrumbs.shared.add(message: message, category: category, attributes: attributes)

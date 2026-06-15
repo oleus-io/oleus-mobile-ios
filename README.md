@@ -27,6 +27,29 @@ OleusMobile.addBreadcrumb(message: "EventDetail opened", category: "navigation")
 OleusMobile.capture(error: error, context: ["flow": "checkout"])
 ```
 
+## Identifying users
+
+Every event carries a `distinct_id`. Before login it's a persisted anonymous id;
+call `identify` after login to tie the anonymous history to the user — Oleus
+resolves both to one person.
+
+```swift
+// after login
+OleusMobile.identify(user.id, properties: ["email": user.email, "plan": user.plan])
+
+// same person across devices (e.g. links a web session)
+OleusMobile.alias(webDistinctId)
+
+// on logout — forget the user, rotate to a fresh anonymous id
+OleusMobile.reset()
+
+OleusMobile.getDistinctId()   // id currently being sent
+```
+
+`identify` emits a `$identify` event containing the prior anonymous id, so
+pre-login activity stitches to the identified person. The id persists across
+launches (in `UserDefaults`) until `reset()`.
+
 ## How crash capture works
 
 1. **At crash time** the C target (`OleusCrashCore`) handles
