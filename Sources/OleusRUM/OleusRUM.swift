@@ -69,6 +69,35 @@ public final class OleusRUM {
         enqueue(event: event(type: .action, attributes: attrs))
     }
 
+    /// Report a handled error manually (e.g. a caught exception or a failed network call
+    /// you want to surface without crashing).
+    public func trackError(
+        message: String,
+        error: Error? = nil,
+        attributes: [String: Any] = [:]
+    ) {
+        var attrs = attributes
+        attrs["message"] = message
+        if let error {
+            attrs["error_type"] = String(describing: type(of: error))
+            attrs["error_description"] = error.localizedDescription
+        }
+        enqueue(event: event(type: .error, attributes: attrs))
+    }
+
+    /// Add a breadcrumb — a lightweight timestamped message used to reconstruct what
+    /// happened before a crash or error (e.g. "user tapped checkout", "payment API called").
+    public func addBreadcrumb(
+        message: String,
+        category: String = "default",
+        attributes: [String: Any] = [:]
+    ) {
+        var attrs = attributes
+        attrs["message"] = message
+        attrs["category"] = category
+        enqueue(event: event(type: .breadcrumb, attributes: attrs))
+    }
+
     func trackViewStart(name: String) {
         currentViewId = UUID().uuidString
         currentViewName = name

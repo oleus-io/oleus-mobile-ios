@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'OleusRUM'
-  s.version          = '0.8.1'
+  s.version          = '0.8.2'
   s.summary          = 'Oleus Real User Monitoring SDK for iOS and macOS.'
 
   s.description      = <<-DESC

@@ -8,6 +8,7 @@ public enum RUMEventType: String, Codable {
     case action         = "action"
     case resource       = "resource"       // network request
     case error          = "error"
+    case breadcrumb     = "breadcrumb"
     case crash          = "crash"
     case anr            = "anr"
     case replay         = "replay_segment"
