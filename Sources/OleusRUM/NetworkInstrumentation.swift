@@ -1,7 +1,7 @@
 import Foundation
 
 final class OleusURLProtocol: URLProtocol {
-    private var task: URLSessionDataTask?
+    private var dataTask: URLSessionDataTask?
     private var startTime: Date = Date()
 
     override class func canInit(with request: URLRequest) -> Bool {
@@ -22,7 +22,7 @@ final class OleusURLProtocol: URLProtocol {
 
         startTime = Date()
         let session = URLSession(configuration: .default, delegate: nil, delegateQueue: nil)
-        task = session.dataTask(with: mutable as URLRequest) { [weak self] data, response, error in
+        dataTask = session.dataTask(with: mutable as URLRequest) { [weak self] data, response, error in
             guard let self else { return }
             let duration = Date().timeIntervalSince(self.startTime) * 1000
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -41,8 +41,8 @@ final class OleusURLProtocol: URLProtocol {
                 self.client?.urlProtocolDidFinishLoading(self)
             }
         }
-        task?.resume()
+        dataTask?.resume()
     }
 
-    override func stopLoading() { task?.cancel() }
+    override func stopLoading() { dataTask?.cancel() }
 }

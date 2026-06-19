@@ -15,8 +15,10 @@ public final class OleusRUM {
     private var osVersion: String
     private var deviceModel: String
     private var crashReporter: CrashReporter?
+    #if canImport(UIKit)
     private var viewTracker: ViewTracker?
     private var sessionReplay: SessionReplay?
+    #endif
 
     public static func start(configuration: OleusConfiguration) {
         let sdk = OleusRUM(configuration: configuration)
@@ -58,39 +60,39 @@ public final class OleusRUM {
     }
 
     func trackSessionStart() {
-        enqueue(event(type: .sessionStart, attributes: [:]))
+        enqueue(event: event(type: .sessionStart, attributes: [:]))
     }
 
     public func trackAction(name: String, attributes: [String: Any] = [:]) {
         var attrs = attributes
         attrs["action_name"] = name
-        enqueue(event(type: .action, attributes: attrs))
+        enqueue(event: event(type: .action, attributes: attrs))
     }
 
     func trackViewStart(name: String) {
         currentViewId = UUID().uuidString
         currentViewName = name
-        enqueue(event(type: .viewStart, attributes: ["view_name": name], viewId: currentViewId))
+        enqueue(event: event(type: .viewStart, attributes: ["view_name": name], viewId: currentViewId))
     }
 
     func trackViewEnd(name: String) {
-        enqueue(event(type: .viewEnd, attributes: ["view_name": name], viewId: currentViewId))
+        enqueue(event: event(type: .viewEnd, attributes: ["view_name": name], viewId: currentViewId))
         currentViewId = nil
     }
 
     func trackResource(url: String, method: String, statusCode: Int, durationMs: Double, traceId: String, spanId: String) {
-        enqueue(event(type: .resource, attributes: [
+        enqueue(event: event(type: .resource, attributes: [
             "url": url, "method": method, "status_code": statusCode,
             "duration_ms": durationMs, "trace_id": traceId, "span_id": spanId,
         ]))
     }
 
     func trackCrash(report: [String: Any]) {
-        enqueue(event(type: .crash, attributes: report))
+        enqueue(event: event(type: .crash, attributes: report))
     }
 
     func trackReplayFrame(wireframe: [String: Any]) {
-        enqueue(event(type: .replay, attributes: ["frame": wireframe]))
+        enqueue(event: event(type: .replay, attributes: ["frame": wireframe]))
     }
 
     func flushSync() {
