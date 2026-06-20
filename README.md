@@ -8,7 +8,7 @@ Published as a standalone repo (mirrored from the Oleus monorepo via
 `git subtree split --prefix sdk/packages/ios/OleusMobile`; develop here, push splits on release):
 
 ```swift
-.package(url: "https://github.com/slowdutch/oleus-mobile-ios.git", from: "1.0.0")
+.package(url: "https://github.com/oleus-io/oleus-mobile-ios.git", from: "1.0.0")
 ```
 
 ## Usage
@@ -18,7 +18,7 @@ import OleusMobile
 
 // As early as possible in AppDelegate/App init:
 OleusMobile.start(
-    endpoint: URL(string: "https://oleus.example.com/otlp")!,
+    endpoint: URL(string: "https://api.dashboard.oleus.io/otlp")!,
     service: "rondo-ios",
     apiKey: ProcessInfo.processInfo.environment["OLEUS_INGEST_KEY_IOS"] ?? "<key>"
 )
@@ -67,7 +67,7 @@ launches (in `UserDefaults`) until `reset()`.
 # in your archive/CI step
 zip -r dSYMs.zip "$ARCHIVE_PATH/dSYMs"
 curl -F "service=rondo-ios" -F "version=$MARKETING_VERSION+$BUILD_NUMBER" \
-     -F "dsyms=@dSYMs.zip" https://oleus.example.com/api/symbols/dsym
+     -F "dsyms=@dSYMs.zip" https://api.dashboard.oleus.io/api/symbols/dsym
 ```
 
 NSExceptions are captured in a normal (non-signal) context with both symbol
