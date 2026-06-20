@@ -29,6 +29,7 @@ public final class OleusMobile {
     private static var sessions: SessionTracker?
     private static var previousExceptionHandler: ((NSException) -> Void)?
     private static var anrWatchdog: AnrWatchdog?
+    private static var metricsQueue: MetricsQueue?
     #if canImport(MetricKit) && os(iOS)
     private static var metricKit: MetricKitObserver?
     #endif
@@ -52,7 +53,8 @@ public final class OleusMobile {
         maxBreadcrumbs: Int                 = 50,
         anrWatchdogEnabled: Bool            = true,
         anrThresholdMs: Int                 = 5_000,
-        jankMonitorEnabled: Bool            = true
+        jankMonitorEnabled: Bool            = true,
+        customMetricsEnabled: Bool          = true
     ) {
         lock.lock(); defer { lock.unlock() }
         guard config == nil else { return }
@@ -65,8 +67,10 @@ public final class OleusMobile {
         cfg.anrWatchdogEnabled            = anrWatchdogEnabled
         cfg.anrThresholdMs                = anrThresholdMs
         cfg.jankMonitorEnabled            = jankMonitorEnabled
+        cfg.customMetricsEnabled          = customMetricsEnabled
         config = cfg
         Breadcrumbs.shared.configure(maxCrumbs: maxBreadcrumbs)
+        if cfg.customMetricsEnabled { metricsQueue = MetricsQueue(config: cfg) }
         let queue = EventQueue(config: cfg)
         events = queue
 
@@ -254,9 +258,40 @@ public final class OleusMobile {
         ))
     }
 
-    /// Force-flush queued events (e.g. before a controlled shutdown).
+    /// Force-flush queued events and metrics (e.g. before a controlled shutdown).
     public static func flush() {
         events?.flush()
+        metricsQueue?.flush()
+    }
+
+    // ── Custom metrics ────────────────────────────────────────────────────────
+
+    /// Record a gauge — a point-in-time value that can go up or down.
+    /// The last value recorded in each flush window is shipped.
+    ///
+    ///     OleusMobile.gauge("match_room.listeners", value: Double(listenerCount),
+    ///                       tags: ["room_id": roomId])
+    public static func gauge(_ name: String, value: Double, tags: [String: String] = [:]) {
+        metricsQueue?.recordGauge(name, value: value, tags: tags)
+    }
+
+    /// Increment a monotonic counter by `delta` (default 1).
+    /// The sum of all increments since the last flush window is shipped as a delta.
+    ///
+    ///     OleusMobile.increment("post.impression", tags: ["post_id": post.id])
+    ///     OleusMobile.increment("api.retry", by: 3, tags: ["endpoint": "/feed"])
+    public static func increment(_ name: String, by delta: Double = 1, tags: [String: String] = [:]) {
+        metricsQueue?.recordIncrement(name, by: delta, tags: tags)
+    }
+
+    /// Record a histogram sample (e.g. durations in ms).
+    /// Each flush ships count, sum, min, max, and distribution across
+    /// standard ms-scale buckets [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000].
+    ///
+    ///     OleusMobile.histogram("api.response_ms", value: elapsed,
+    ///                           tags: ["endpoint": "/events"])
+    public static func histogram(_ name: String, value: Double, tags: [String: String] = [:]) {
+        metricsQueue?.recordHistogram(name, value: value, tags: tags)
     }
 
     // ── NSException path (normal context — Foundation is safe here) ──────────
