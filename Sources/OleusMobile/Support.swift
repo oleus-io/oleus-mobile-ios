@@ -11,8 +11,12 @@ struct OleusConfig {
     let apiKey: String?
     let environment: String
     var networkInstrumentationEnabled: Bool = true
-    var sessionReplayEnabled: Bool = true
-    var sessionReplaySampleRate: Double = 0.1
+    var sessionReplayEnabled: Bool          = true
+    var sessionReplaySampleRate: Double     = 0.1
+    var maxBreadcrumbs: Int                 = 50
+    var anrWatchdogEnabled: Bool            = true
+    var anrThresholdMs: Int                 = 5_000
+    var jankMonitorEnabled: Bool            = true
 
     var release: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0"

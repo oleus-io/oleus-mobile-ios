@@ -10,7 +10,9 @@ final class Breadcrumbs {
 
     private let queue = DispatchQueue(label: "io.oleus.breadcrumbs")
     private var crumbs: [[String: Any]] = []
-    private let maxCrumbs = 50
+    private(set) var maxCrumbs: Int = 50
+
+    func configure(maxCrumbs: Int) { self.maxCrumbs = max(1, maxCrumbs) }
 
     private init() {
         // load the trail from the previous run before the reaper consumes it

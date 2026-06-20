@@ -18,8 +18,8 @@ import UIKit
 ///
 /// Usage:
 ///     OleusMobile.start(
-///         endpoint: URL(string: "https://oleus.example.com/otlp")!,
-///         service: "rondo-ios",
+///         endpoint: URL(string: "https://api.dashboard.oleus.io/otlp")!,
+///         service: "my-ios-app",
 ///         apiKey: "<OLEUS_INGEST_KEY_IOS>"
 ///     )
 public final class OleusMobile {
@@ -28,12 +28,14 @@ public final class OleusMobile {
     private static var events: EventQueue?
     private static var sessions: SessionTracker?
     private static var previousExceptionHandler: ((NSException) -> Void)?
+    private static var anrWatchdog: AnrWatchdog?
     #if canImport(MetricKit) && os(iOS)
     private static var metricKit: MetricKitObserver?
     #endif
     #if canImport(UIKit)
     private static var viewTracker: ViewTracker?
     private static var sessionReplay: SessionReplay?
+    private static var jankMonitor: JankMonitor?
     #endif
 
     // ── public API ────────────────────────────────────────────────────────────
@@ -45,17 +47,26 @@ public final class OleusMobile {
         apiKey: String? = nil,
         environment: String = "production",
         networkInstrumentationEnabled: Bool = true,
-        sessionReplayEnabled: Bool = true,
-        sessionReplaySampleRate: Double = 0.1
+        sessionReplayEnabled: Bool          = true,
+        sessionReplaySampleRate: Double     = 0.1,
+        maxBreadcrumbs: Int                 = 50,
+        anrWatchdogEnabled: Bool            = true,
+        anrThresholdMs: Int                 = 5_000,
+        jankMonitorEnabled: Bool            = true
     ) {
         lock.lock(); defer { lock.unlock() }
         guard config == nil else { return }
 
         var cfg = OleusConfig(endpoint: endpoint, service: service, apiKey: apiKey, environment: environment)
         cfg.networkInstrumentationEnabled = networkInstrumentationEnabled
-        cfg.sessionReplayEnabled = sessionReplayEnabled
-        cfg.sessionReplaySampleRate = sessionReplaySampleRate
+        cfg.sessionReplayEnabled          = sessionReplayEnabled
+        cfg.sessionReplaySampleRate       = sessionReplaySampleRate
+        cfg.maxBreadcrumbs                = maxBreadcrumbs
+        cfg.anrWatchdogEnabled            = anrWatchdogEnabled
+        cfg.anrThresholdMs                = anrThresholdMs
+        cfg.jankMonitorEnabled            = jankMonitorEnabled
         config = cfg
+        Breadcrumbs.shared.configure(maxCrumbs: maxBreadcrumbs)
         let queue = EventQueue(config: cfg)
         events = queue
 
@@ -82,7 +93,27 @@ public final class OleusMobile {
         metricKit = MetricKitObserver(config: cfg, events: queue)
         #endif
 
-        // 6. auto view tracking + network instrumentation + session replay
+        // 6. ANR watchdog — live main-thread hang detection
+        if cfg.anrWatchdogEnabled {
+            let watchdog = AnrWatchdog(thresholdMs: cfg.anrThresholdMs) { stack, blockedForMs in
+                guard let cfg = config, let queue = events else { return }
+                var attrs = OleusOTLP.baseAttributes(config: cfg, sessionId: sessions?.sessionId)
+                attrs["error_type"]    = "ANR"
+                attrs["error_message"] = "Main thread blocked for \(blockedForMs) ms"
+                attrs["error_stack"]   = stack
+                attrs["anr_duration_ms"] = String(blockedForMs)
+                queue.enqueue(OleusOTLP.Record(
+                    timeMs: Date().timeIntervalSince1970 * 1000,
+                    severity: "ERROR",
+                    body: "ANR: main thread blocked for \(blockedForMs) ms",
+                    attributes: attrs
+                ))
+            }
+            watchdog.start()
+            anrWatchdog = watchdog
+        }
+
+        // 7. auto view tracking + network instrumentation + session replay + jank
         #if canImport(UIKit)
         viewTracker = ViewTracker()
         if cfg.networkInstrumentationEnabled {
@@ -92,6 +123,22 @@ public final class OleusMobile {
             let replay = SessionReplay(config: cfg, events: queue, sessionId: sessions?.sessionId ?? "")
             replay.start()
             sessionReplay = replay
+        }
+        if cfg.jankMonitorEnabled {
+            let jank = JankMonitor { frameMs, type in
+                guard let cfg = config, let queue = events else { return }
+                var attrs = OleusOTLP.baseAttributes(config: cfg, sessionId: sessions?.sessionId)
+                attrs["event.name"] = type
+                attrs["frame_ms"]   = String(format: "%.1f", frameMs)
+                queue.enqueue(OleusOTLP.Record(
+                    timeMs: Date().timeIntervalSince1970 * 1000,
+                    severity: type == "frozen_frame" ? "ERROR" : "WARN",
+                    body: "\(type): \(String(format: "%.0f", frameMs)) ms",
+                    attributes: attrs
+                ))
+            }
+            jank.start()
+            jankMonitor = jank
         }
         #endif
     }
