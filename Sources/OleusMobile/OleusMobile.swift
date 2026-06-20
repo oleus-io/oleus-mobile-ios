@@ -37,6 +37,7 @@ public final class OleusMobile {
     private static var viewTracker: ViewTracker?
     private static var sessionReplay: SessionReplay?
     private static var jankMonitor: JankMonitor?
+    private static var memoryMonitor: MemoryMonitor?
     #endif
 
     // ── public API ────────────────────────────────────────────────────────────
@@ -54,7 +55,9 @@ public final class OleusMobile {
         anrWatchdogEnabled: Bool            = true,
         anrThresholdMs: Int                 = 5_000,
         jankMonitorEnabled: Bool            = true,
-        customMetricsEnabled: Bool          = true
+        customMetricsEnabled: Bool          = true,
+        memoryMonitorEnabled: Bool          = true,
+        spansEnabled: Bool                  = true
     ) {
         lock.lock(); defer { lock.unlock() }
         guard config == nil else { return }
@@ -68,6 +71,8 @@ public final class OleusMobile {
         cfg.anrThresholdMs                = anrThresholdMs
         cfg.jankMonitorEnabled            = jankMonitorEnabled
         cfg.customMetricsEnabled          = customMetricsEnabled
+        cfg.memoryMonitorEnabled          = memoryMonitorEnabled
+        cfg.spansEnabled                  = spansEnabled
         config = cfg
         Breadcrumbs.shared.configure(maxCrumbs: maxBreadcrumbs)
         if cfg.customMetricsEnabled { metricsQueue = MetricsQueue(config: cfg) }
@@ -143,6 +148,25 @@ public final class OleusMobile {
             }
             jank.start()
             jankMonitor = jank
+        }
+
+        if cfg.memoryMonitorEnabled {
+            let monitor = MemoryMonitor { residentMB, availableMB in
+                guard let cfg = config, let queue = events else { return }
+                var attrs = OleusOTLP.baseAttributes(config: cfg, sessionId: sessions?.sessionId)
+                attrs["event.name"]    = "memory_warning"
+                attrs["event.domain"]  = "oleus"
+                attrs["resident_mb"]   = String(residentMB)
+                attrs["available_mb"]  = String(availableMB)
+                queue.enqueue(OleusOTLP.Record(
+                    timeMs: Date().timeIntervalSince1970 * 1000,
+                    severity: "WARN",
+                    body: "memory_warning: \(residentMB) MB resident, \(availableMB) MB available",
+                    attributes: attrs
+                ))
+            }
+            monitor.start()
+            memoryMonitor = monitor
         }
         #endif
     }
@@ -292,6 +316,41 @@ public final class OleusMobile {
     ///                           tags: ["endpoint": "/events"])
     public static func histogram(_ name: String, value: Double, tags: [String: String] = [:]) {
         metricsQueue?.recordHistogram(name, value: value, tags: tags)
+    }
+
+    // ── Distributed tracing spans ─────────────────────────────────────────────
+
+    /// Start a distributed tracing span. Call `finish()` when the operation
+    /// completes — the span is shipped as a log event alongside crashes and
+    /// sessions so you can see timing in the Oleus dashboard.
+    ///
+    ///     let span = OleusMobile.startSpan("db.fetch", attributes: ["table": "events"])
+    ///     defer { span.finish() }
+    ///     // ... work ...
+    ///     span.setTag("row_count", String(rows.count))
+    ///
+    /// Use `span.childSpan(name:)` to nest operations under the same trace ID.
+    public static func startSpan(
+        _ name: String,
+        traceId: String? = nil,
+        attributes: [String: String] = [:]
+    ) -> OleusSpan {
+        OleusSpan(name: name, traceId: traceId, attributes: attributes) { span in
+            guard let cfg = config, let queue = events else { return }
+            var attrs = OleusOTLP.baseAttributes(config: cfg, sessionId: sessions?.sessionId)
+            attrs["event.name"]       = "span"
+            attrs["event.domain"]     = "oleus"
+            attrs["span.name"]        = span.name
+            attrs["trace_id"]         = span.traceId
+            attrs["span_id"]          = span.spanId
+            for (k, v) in span.allTags { attrs[k] = v }
+            queue.enqueue(OleusOTLP.Record(
+                timeMs: span.startTimestamp,
+                severity: span.spanStatus == "error" ? "ERROR" : "INFO",
+                body: "span:\(span.name)",
+                attributes: attrs
+            ))
+        }
     }
 
     // ── NSException path (normal context — Foundation is safe here) ──────────

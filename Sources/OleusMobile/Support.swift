@@ -18,6 +18,8 @@ struct OleusConfig {
     var anrThresholdMs: Int                 = 5_000
     var jankMonitorEnabled: Bool            = true
     var customMetricsEnabled: Bool          = true
+    var memoryMonitorEnabled: Bool          = true
+    var spansEnabled: Bool                  = true
 
     var release: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0"
