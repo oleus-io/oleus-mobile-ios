@@ -31,6 +31,10 @@ public final class OleusMobile {
     #if canImport(MetricKit) && os(iOS)
     private static var metricKit: MetricKitObserver?
     #endif
+    #if canImport(UIKit)
+    private static var viewTracker: ViewTracker?
+    private static var sessionReplay: SessionReplay?
+    #endif
 
     // ── public API ────────────────────────────────────────────────────────────
 
@@ -39,12 +43,18 @@ public final class OleusMobile {
         endpoint: URL,
         service: String,
         apiKey: String? = nil,
-        environment: String = "production"
+        environment: String = "production",
+        networkInstrumentationEnabled: Bool = true,
+        sessionReplayEnabled: Bool = true,
+        sessionReplaySampleRate: Double = 0.1
     ) {
         lock.lock(); defer { lock.unlock() }
         guard config == nil else { return }
 
-        let cfg = OleusConfig(endpoint: endpoint, service: service, apiKey: apiKey, environment: environment)
+        var cfg = OleusConfig(endpoint: endpoint, service: service, apiKey: apiKey, environment: environment)
+        cfg.networkInstrumentationEnabled = networkInstrumentationEnabled
+        cfg.sessionReplayEnabled = sessionReplayEnabled
+        cfg.sessionReplaySampleRate = sessionReplaySampleRate
         config = cfg
         let queue = EventQueue(config: cfg)
         events = queue
@@ -70,6 +80,19 @@ public final class OleusMobile {
         sessions = SessionTracker(config: cfg, events: queue)
         #if canImport(MetricKit) && os(iOS)
         metricKit = MetricKitObserver(config: cfg, events: queue)
+        #endif
+
+        // 6. auto view tracking + network instrumentation + session replay
+        #if canImport(UIKit)
+        viewTracker = ViewTracker()
+        if cfg.networkInstrumentationEnabled {
+            URLProtocol.registerClass(OleusURLProtocol.self)
+        }
+        if cfg.sessionReplayEnabled && Double.random(in: 0...1) < cfg.sessionReplaySampleRate {
+            let replay = SessionReplay(config: cfg, events: queue, sessionId: sessions?.sessionId ?? "")
+            replay.start()
+            sessionReplay = replay
+        }
         #endif
     }
 
@@ -160,6 +183,26 @@ public final class OleusMobile {
             timeMs: Date().timeIntervalSince1970 * 1000,
             severity: "INFO",
             body: "screen_view",
+            attributes: attrs
+        ))
+    }
+
+    /// Record a network resource fetch (auto-captured when network instrumentation is enabled).
+    public static func trackResource(url: String, method: String, statusCode: Int, durationMs: Double, traceId: String, spanId: String) {
+        guard let cfg = config, let queue = events else { return }
+        var attrs = OleusOTLP.baseAttributes(config: cfg, sessionId: sessions?.sessionId)
+        attrs["event.name"] = "resource"
+        attrs["event.domain"] = "oleus"
+        attrs["url"] = url
+        attrs["method"] = method
+        attrs["status_code"] = String(statusCode)
+        attrs["duration_ms"] = String(format: "%.0f", durationMs)
+        attrs["trace_id"] = traceId
+        attrs["span_id"] = spanId
+        queue.enqueue(OleusOTLP.Record(
+            timeMs: Date().timeIntervalSince1970 * 1000,
+            severity: statusCode >= 400 ? "ERROR" : "INFO",
+            body: "resource",
             attributes: attrs
         ))
     }
