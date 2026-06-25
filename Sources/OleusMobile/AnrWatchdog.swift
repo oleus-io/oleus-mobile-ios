@@ -9,7 +9,7 @@ import Foundation
 ///
 /// Complements MetricKit `MXHangDiagnostic` (which only surfaces hangs the
 /// OS measured, delivered the following day) with live, in-session detection.
-final class AnrWatchdog {
+final class AnrWatchdog: @unchecked Sendable {
     private let thresholdMs: Int
     private let intervalMs: Int
     private let onAnr: (_ stack: String, _ blockedForMs: Int) -> Void
