@@ -17,19 +17,15 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = "15.0"
   s.swift_versions = ["5.7", "5.8", "5.9", "5.10", "6.0"]
 
-  s.default_subspecs = "Core"
+  s.source_files  = "Sources/OleusMobile/**/*.swift",
+                    "Sources/OleusCrashCore/**/*.{c,h}"
 
-  s.subspec "Core" do |core|
-    core.source_files = "Sources/OleusMobile/**/*.swift"
-    core.dependency "OleusMobile/CrashCore"
-    core.frameworks = "Foundation", "MetricKit"
-    core.weak_frameworks = "UIKit"
-  end
+  s.public_header_files = "Sources/OleusCrashCore/include/**/*.h"
 
-  s.subspec "CrashCore" do |cc|
-    cc.source_files = "Sources/OleusCrashCore/**/*.{c,h}"
-    cc.public_header_files = "Sources/OleusCrashCore/include/**/*.h"
-    cc.module_map = "Sources/OleusCrashCore/include/module.modulemap"
-    cc.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
-  end
+  s.module_map = "Sources/OleusCrashCore/include/module.modulemap"
+
+  s.frameworks        = "Foundation", "MetricKit"
+  s.weak_frameworks   = "UIKit"
+
+  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 end
