@@ -22,10 +22,6 @@ Pod::Spec.new do |s|
 
   s.public_header_files = "Sources/OleusCrashCore/include/**/*.h"
 
-  s.module_map = "Sources/OleusCrashCore/include/module.modulemap"
-
-  s.frameworks        = "Foundation", "MetricKit"
-  s.weak_frameworks   = "UIKit"
-
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
+  s.frameworks      = "Foundation", "MetricKit"
+  s.weak_frameworks = "UIKit"
 end

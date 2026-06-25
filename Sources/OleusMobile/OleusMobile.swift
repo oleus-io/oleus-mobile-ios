@@ -1,5 +1,4 @@
 import Foundation
-import OleusCrashCore
 
 #if canImport(UIKit)
 import UIKit
