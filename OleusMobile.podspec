@@ -24,4 +24,8 @@ Pod::Spec.new do |s|
 
   s.frameworks      = "Foundation", "MetricKit"
   s.weak_frameworks = "UIKit"
+
+  s.pod_target_xcconfig = {
+    'SWIFT_STRICT_CONCURRENCY' => 'minimal'
+  }
 end
