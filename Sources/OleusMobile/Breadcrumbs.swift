@@ -6,7 +6,7 @@ import Foundation
 /// loads this file instead, so crumbs survive hard crashes without any
 /// signal-context work.
 final class Breadcrumbs {
-    static let shared = Breadcrumbs()
+    nonisolated(unsafe) static let shared = Breadcrumbs()
 
     private let queue = DispatchQueue(label: "io.oleus.breadcrumbs")
     private var crumbs: [[String: Any]] = []

@@ -84,7 +84,7 @@ enum OleusIdentity {
     private static let lock = NSLock()
 
     /// Backing store. Overridable in tests to isolate from the app's defaults.
-    static var defaults: UserDefaults = .standard
+    nonisolated(unsafe) static var defaults: UserDefaults = .standard
 
     /// The persisted anonymous id (generated once per install, until `reset`).
     static var anonId: String {

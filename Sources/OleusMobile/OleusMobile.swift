@@ -23,20 +23,20 @@ import UIKit
 ///     )
 public final class OleusMobile {
     private static let lock = NSLock()
-    private static var config: OleusConfig?
-    private static var events: EventQueue?
-    private static var sessions: SessionTracker?
-    private static var previousExceptionHandler: ((NSException) -> Void)?
-    private static var anrWatchdog: AnrWatchdog?
-    private static var metricsQueue: MetricsQueue?
+    nonisolated(unsafe) private static var config: OleusConfig?
+    nonisolated(unsafe) private static var events: EventQueue?
+    nonisolated(unsafe) private static var sessions: SessionTracker?
+    nonisolated(unsafe) private static var previousExceptionHandler: ((NSException) -> Void)?
+    nonisolated(unsafe) private static var anrWatchdog: AnrWatchdog?
+    nonisolated(unsafe) private static var metricsQueue: MetricsQueue?
     #if canImport(MetricKit) && os(iOS)
-    private static var metricKit: MetricKitObserver?
+    nonisolated(unsafe) private static var metricKit: MetricKitObserver?
     #endif
     #if canImport(UIKit)
-    private static var viewTracker: ViewTracker?
-    private static var sessionReplay: SessionReplay?
-    private static var jankMonitor: JankMonitor?
-    private static var memoryMonitor: MemoryMonitor?
+    nonisolated(unsafe) private static var viewTracker: ViewTracker?
+    nonisolated(unsafe) private static var sessionReplay: SessionReplay?
+    nonisolated(unsafe) private static var jankMonitor: JankMonitor?
+    nonisolated(unsafe) private static var memoryMonitor: MemoryMonitor?
     #endif
 
     // ── public API ────────────────────────────────────────────────────────────
