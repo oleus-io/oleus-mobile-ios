@@ -29,5 +29,7 @@ Pod::Spec.new do |s|
   s.subspec "CrashCore" do |cc|
     cc.source_files = "Sources/OleusCrashCore/**/*.{c,h}"
     cc.public_header_files = "Sources/OleusCrashCore/include/**/*.h"
+    cc.module_map = "Sources/OleusCrashCore/include/module.modulemap"
+    cc.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   end
 end
