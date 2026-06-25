@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "OleusMobile"
-  s.version      = "0.8.3"
+  s.version      = "0.8.4"
   s.summary      = "Oleus crash reporting, session tracking, and observability SDK for iOS."
   s.description  = <<-DESC
     OleusMobile captures crashes (C-level signal handler + NSException),
