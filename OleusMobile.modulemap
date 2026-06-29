@@ -1,4 +1,4 @@
 module OleusMobile {
-  header "Sources/OleusCrashCore/include/OleusCrashCore.h"
+  header "../Headers/OleusCrashCore.h"
   export *
 }
