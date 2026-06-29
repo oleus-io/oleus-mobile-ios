@@ -1,5 +1,13 @@
 import Foundation
 
+// In SPM, OleusCrashCore is a separate C target and Swift 6 / Xcode 26 no longer
+// implicitly bridges its symbols — it must be imported explicitly. In the flat
+// CocoaPods pod there is no such module (the C headers are merged into OleusMobile
+// via the framework module map), so the import is guarded by canImport.
+#if canImport(OleusCrashCore)
+import OleusCrashCore
+#endif
+
 #if canImport(UIKit)
 import UIKit
 #endif
