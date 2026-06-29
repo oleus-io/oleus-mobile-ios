@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "OleusMobile"
-  s.version      = "0.8.4"
+  s.version      = "0.8.5"
   s.summary      = "Oleus crash reporting, session tracking, and observability SDK for iOS."
   s.description  = <<-DESC
     OleusMobile captures crashes (C-level signal handler + NSException),
@@ -22,10 +22,8 @@ Pod::Spec.new do |s|
 
   s.public_header_files = "Sources/OleusCrashCore/include/**/*.h"
 
+  s.module_map = "OleusMobile.modulemap"
+
   s.frameworks      = "Foundation", "MetricKit"
   s.weak_frameworks = "UIKit"
-
-  s.pod_target_xcconfig = {
-    'SWIFT_STRICT_CONCURRENCY' => 'minimal'
-  }
 end
